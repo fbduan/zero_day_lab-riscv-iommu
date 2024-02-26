@@ -38,9 +38,24 @@ INC += -I./rtl/translation_logic/wrapper
 INC += -I./rtl/software_interface
 INC += -I./rtl/software_interface/regmap
 INC += -I./rtl/software_interface/wrapper
-INC += -I./rtl/ext_interfaces
 
-all: lint
+INCDIR += +incdir+./packages/dependencies
+INCDIR += +incdir+./packages/rv_iommu
+INCDIR += +incdir+./include
+##INCDIR += +incdir+./vendor
+##INCDIR += +incdir+./rtl
+##INCDIR += +incdir+./rtl/translation_logic
+##INCDIR += +incdir+./rtl/translation_logic/cdw
+##INCDIR += +incdir+./rtl/translation_logic/ptw
+##INCDIR += +incdir+./rtl/translation_logic/iotlb
+##INCDIR += +incdir+./rtl/translation_logic/wrapper
+##INCDIR += +incdir+./rtl/software_interface
+##INCDIR += +incdir+./rtl/software_interface/regmap
+##INCDIR += +incdir+./rtl/software_interface/wrapper
+##INCDIR += +incdir+./rtl/ext_interfaces
+##INCDIR += +incdir+./rtl/ext_interfaces
+
+all: verdi
 
 lint:
 	verilator --lint-only lint_checks.sv ${INC} ${WARN_FLAGS}
@@ -50,3 +65,8 @@ lint_less:
 
 lint_log:
 	verilator --lint-only lint_checks.sv ${INC} ${WARN_FLAGS} 2> verilator_log.txt
+
+verdi:
+	verdi -sv -f iommu_top.f -top iommu_top &
+
+

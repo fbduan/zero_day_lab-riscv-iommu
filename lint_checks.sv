@@ -57,7 +57,7 @@ module lint_checks (
 		.InclBC             ( 1'b1						),
 		.InclDBG			( 1'b1						),
 
-		.MSITrans			( rv_iommu::MSI_DISABLED	),
+		.MSITrans			( rv_iommu::MSI_FLAT_MRIF ), ////rv_iommu::MSI_DISABLED	),
 		.IGS         		( rv_iommu::BOTH			),
 		.N_INT_VEC          ( ariane_soc::IOMMUNumWires ),
 		.N_IOHPMCTR			( 16						),
