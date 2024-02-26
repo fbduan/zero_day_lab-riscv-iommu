@@ -173,6 +173,80 @@ module rv_iommu_tw_sv39x4_pc #(
     logic [riscv::PPNW-1:0]         iohgatp_ppn_fw;
     logic                           is_ddt_walk;
 
+    // MSI PTW is active
+    logic msiptw_active;
+
+    // IOATC wires
+    // DDTC
+    logic                       ddtc_access;
+    dc_t                        ddtc_lu_content;
+    logic                       ddtc_lu_hit;
+
+    logic                       ddtc_update;
+    logic [23:0]                ddtc_up_did;
+    dc_t                        ddtc_up_content;
+
+    // PDTC
+    logic                       pdtc_access;
+    rv_iommu::pc_t              pdtc_lu_content;
+    logic                       pdtc_lu_hit;
+
+    logic                       pdtc_update;
+    logic [19:0]                pdtc_up_pid;
+    rv_iommu::pc_t              pdtc_up_content;
+
+    // IOTLB
+    logic                       iotlb_access;
+    riscv::pte_t                iotlb_lu_1S_content;
+    riscv::pte_t                iotlb_lu_2S_content;
+    logic                       iotlb_lu_1S_2M;
+    logic                       iotlb_lu_1S_1G;
+    logic                       iotlb_lu_2S_2M;
+    logic                       iotlb_lu_2S_1G;
+    logic                       iotlb_lu_is_msi;
+    logic                       iotlb_lu_hit;
+
+    logic                       iotlb_update;
+    logic                       iotlb_up_1S_2M;
+    logic                       iotlb_up_1S_1G;
+    logic                       iotlb_up_2S_2M;
+    logic                       iotlb_up_2S_1G;
+    logic                       iotlb_up_is_msi;
+    logic [riscv::GPPNW-1:0]    iotlb_up_vpn;
+    logic [19:0]                iotlb_up_pscid;
+    logic [15:0]                iotlb_up_gscid;
+    riscv::pte_t                iotlb_up_1S_content;
+    riscv::pte_t                iotlb_up_2S_content;
+
+    // Update bus from PTW to IOTLB
+    logic                       ptw_update;
+    logic                       ptw_up_1S_2M;
+    logic                       ptw_up_1S_1G;
+    logic                       ptw_up_2S_2M;
+    logic                       ptw_up_2S_1G;
+    logic [riscv::GPPNW-1:0]    ptw_up_vpn;
+    logic [19:0]                ptw_up_pscid;
+    logic [15:0]                ptw_up_gscid;
+    riscv::pte_t                ptw_up_1S_content;
+    riscv::pte_t                ptw_up_2S_content;
+
+    // Update bus from MSI PTW to IOTLB
+    logic                       msi_update;
+    logic                       mrifc_update;
+    logic                       msi_up_1S_2M;
+    logic                       msi_up_1S_1G;
+    logic [riscv::GPPNW-1:0]    msi_up_vpn;
+    logic [19:0]                msi_up_pscid;
+    logic [15:0]                msi_up_gscid;
+    riscv::pte_t                msi_up_1S_content;
+    rv_iommu::msi_pte_flat_t    msi_up_content;
+    rv_iommu::mrifc_entry_t     mrifc_up_msi_content;
+
+    // MRIFC
+    logic                       mrifc_lu_hit;
+    riscv::pte_t                mrifc_lu_1S_content;
+    rv_iommu::mrifc_entry_t     mrifc_lu_msi_content;
+
     // If DC.tc.DPE is 1 and no valid process_id is given by the device, default value of zero is used
     logic [19:0] process_id;
     assign process_id = (!pv_i && ddtc_lu_content.tc.dpe) ? '0 : pid_i;
@@ -264,80 +338,6 @@ module rv_iommu_tw_sv39x4_pc #(
     assign s2_ptw_o     = ptw_active & (ptw_en_2S);
     assign gscid_o      = gscid;
     assign pscid_o      = pscid;
-
-    // MSI PTW is active
-    logic msiptw_active;
-
-    // IOATC wires
-    // DDTC
-    logic                       ddtc_access;
-    dc_t                        ddtc_lu_content;
-    logic                       ddtc_lu_hit;
-
-    logic                       ddtc_update;
-    logic [23:0]                ddtc_up_did;
-    dc_t                        ddtc_up_content;
-
-    // PDTC
-    logic                       pdtc_access;
-    rv_iommu::pc_t              pdtc_lu_content;
-    logic                       pdtc_lu_hit;
-
-    logic                       pdtc_update;
-    logic [19:0]                pdtc_up_pid;
-    rv_iommu::pc_t              pdtc_up_content;
-
-    // IOTLB
-    logic                       iotlb_access;
-    riscv::pte_t                iotlb_lu_1S_content;
-    riscv::pte_t                iotlb_lu_2S_content;
-    logic                       iotlb_lu_1S_2M;
-    logic                       iotlb_lu_1S_1G;
-    logic                       iotlb_lu_2S_2M;
-    logic                       iotlb_lu_2S_1G;
-    logic                       iotlb_lu_is_msi;
-    logic                       iotlb_lu_hit;
-
-    logic                       iotlb_update;
-    logic                       iotlb_up_1S_2M;
-    logic                       iotlb_up_1S_1G;
-    logic                       iotlb_up_2S_2M;
-    logic                       iotlb_up_2S_1G;
-    logic                       iotlb_up_is_msi;
-    logic [riscv::GPPNW-1:0]    iotlb_up_vpn;
-    logic [19:0]                iotlb_up_pscid;
-    logic [15:0]                iotlb_up_gscid;
-    riscv::pte_t                iotlb_up_1S_content;
-    riscv::pte_t                iotlb_up_2S_content;
-
-    // Update bus from PTW to IOTLB
-    logic                       ptw_update;
-    logic                       ptw_up_1S_2M;
-    logic                       ptw_up_1S_1G;
-    logic                       ptw_up_2S_2M;
-    logic                       ptw_up_2S_1G;
-    logic [riscv::GPPNW-1:0]    ptw_up_vpn;
-    logic [19:0]                ptw_up_pscid;
-    logic [15:0]                ptw_up_gscid;
-    riscv::pte_t                ptw_up_1S_content;
-    riscv::pte_t                ptw_up_2S_content;
-
-    // Update bus from MSI PTW to IOTLB
-    logic                       msi_update;
-    logic                       mrifc_update;
-    logic                       msi_up_1S_2M;
-    logic                       msi_up_1S_1G;
-    logic [riscv::GPPNW-1:0]    msi_up_vpn;
-    logic [19:0]                msi_up_pscid;
-    logic [15:0]                msi_up_gscid;
-    riscv::pte_t                msi_up_1S_content;
-    rv_iommu::msi_pte_flat_t    msi_up_content;
-    rv_iommu::mrifc_entry_t     mrifc_up_msi_content;
-
-    // MRIFC
-    logic                       mrifc_lu_hit;
-    riscv::pte_t                mrifc_lu_1S_content;
-    rv_iommu::mrifc_entry_t     mrifc_lu_msi_content;
 
     // The IOTLB can be updated from the PTW or from the MSI PTW
     assign iotlb_update         = ptw_update | msi_update;
