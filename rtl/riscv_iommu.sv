@@ -68,10 +68,14 @@ module riscv_iommu #(
     parameter type  axi_req_t       = logic,
     /// AXI Full response struct type
     parameter type  axi_rsp_t       = logic,
+
+`ifdef RV_IOMMU_PROG_IF_USE_AXI
     /// AXI Full Slave request struct type
     parameter type  axi_req_slv_t   = logic,
     /// AXI Full Slave response struct type
     parameter type  axi_rsp_slv_t   = logic,
+`endif // RV_IOMMU_PROG_IF_USE_AXI
+
     /// AXI Full request struct type w/ DVM extension for SMMU
     parameter type  axi_req_mmu_t   = logic,
     /// Regbus request struct type.
@@ -98,8 +102,19 @@ module riscv_iommu #(
     output axi_req_t        ds_req_o,
 
     // Programming Interface (Slave) (AXI4 + ATOP => Reg IF)
+`ifdef RV_IOMMU_PROG_IF_USE_AXI
     input  axi_req_slv_t    prog_req_i,
     output axi_rsp_slv_t    prog_resp_o,
+`else // RV_IOMMU_PROG_IF_USE_APB
+    input  logic            penable_i,
+    input  logic            pwrite_i,
+    input  logic [31:0]     paddr_i,
+    input  logic            psel_i,
+    input  logic [31:0]     pwdata_i,
+    output logic [31:0]     prdata_o,
+    output logic            pready_o,
+    output logic            pslverr_o,
+`endif // RV_IOMMU_PROG_IF_USE_AXI
 
     output logic [(N_INT_VEC-1):0] wsi_wires_o
 );
@@ -406,12 +421,14 @@ module riscv_iommu #(
 
     //# Programming Interface
     rv_iommu_prog_if #(
+      `ifdef RV_IOMMU_PROG_IF_USE_AXI
         .ADDR_WIDTH     (ADDR_WIDTH     ),
         .DATA_WIDTH     (DATA_WIDTH     ),
         .ID_WIDTH       (ID_SLV_WIDTH   ),
         .USER_WIDTH     (USER_WIDTH     ),
         .axi_req_t      (axi_req_slv_t  ),
         .axi_rsp_t      (axi_rsp_slv_t  ),
+      `endif // RV_IOMMU_PROG_IF_USE_AXI
         .reg_req_t      (reg_req_t      ),
         .reg_rsp_t      (reg_rsp_t      )
     ) i_rv_iommu_prog_if (
@@ -419,8 +436,19 @@ module riscv_iommu #(
         .rst_ni         (rst_ni         ),
 
         // From IOMMU ext port
+      `ifdef RV_IOMMU_PROG_IF_USE_AXI
         .prog_req_i     (prog_req_i     ),
         .prog_resp_o    (prog_resp_o    ),
+      `else // RV_IOMMU_PROG_IF_USE_APB
+        .penable_i     ( penable_i     ),
+        .pwrite_i      ( pwrite_i      ),
+        .paddr_i       ( paddr_i       ),
+        .psel_i        ( psel_i        ),
+        .pwdata_i      ( pwdata_i      ),
+        .prdata_o      ( prdata_o      ),
+        .pready_o      ( pready_o      ),
+        .pslverr_o     ( pslverr_o     ),
+      `endif // RV_IOMMU_PROG_IF_USE_AXI
 
         // To SW interface wrapper
         .regmap_req_o   (regmap_req     ),

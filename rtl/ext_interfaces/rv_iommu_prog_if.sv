@@ -22,6 +22,7 @@
 `include "register_interface/assign.svh"
 
 module rv_iommu_prog_if #(
+`ifdef RV_IOMMU_PROG_IF_USE_AXI
     /// The width of the address.
     parameter int               ADDR_WIDTH = -1,
     /// The width of the data.
@@ -35,6 +36,7 @@ module rv_iommu_prog_if #(
     parameter type  axi_req_t = logic,
     /// AXI Full response struct type
     parameter type  axi_rsp_t = logic,
+`endif // RV_IOMMU_PROG_IF_USE_AXI
     /// Regbus request struct type.
     parameter type  reg_req_t = logic,
     /// Regbus response struct type.
@@ -46,8 +48,19 @@ module rv_iommu_prog_if #(
     input  logic     rst_ni,
 
     // From IOMMU programing interface
+`ifdef RV_IOMMU_PROG_IF_USE_AXI
     input  axi_req_t prog_req_i,
     output axi_rsp_t prog_resp_o,
+`else // RV_IOMMU_PROG_IF_USE_APB
+    input  logic          penable_i,
+    input  logic          pwrite_i,
+    input  logic [31:0]   paddr_i,
+    input  logic          psel_i,
+    input  logic [31:0]   pwdata_i,
+    output logic [31:0]   prdata_o,
+    output logic          pready_o,
+    output logic          pslverr_o,
+`endif // RV_IOMMU_PROG_IF_USE_AXI
 
     // To register map
     output reg_req_t regmap_req_o,
@@ -68,6 +81,7 @@ module rv_iommu_prog_if #(
     logic         pready;
     logic         pslverr;
 
+`ifdef RV_IOMMU_PROG_IF_USE_AXI
     // AXI4 to APB IF
     axi2apb_64_32 #(
         .AXI4_ADDRESS_WIDTH ( ADDR_WIDTH  ),
@@ -140,6 +154,16 @@ module rv_iommu_prog_if #(
         .PREADY    ( pready               ),
         .PSLVERR   ( pslverr              )
     );
+`else // RV_IOMMU_PROG_IF_USE_APB
+assign penable   = penable_i;
+assign pwrite    = pwrite_i ;
+assign paddr     = paddr_i  ;
+assign psel      = psel_i   ;
+assign pwdata    = pwdata_i ;
+assign prdata_o  = prdata   ;
+assign pready_o  = pready   ;
+assign pslverr_o = pslverr  ;
+`endif // RV_IOMMU_PROG_IF_USE_AXI
 
     // APB to REG IF
     apb_to_reg i_apb_to_reg (

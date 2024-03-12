@@ -45,10 +45,16 @@ module iommu_top(/*AUTOARG*/
     dsi_axi_arid, dsi_axi_aruser, dsi_axi_arqos, dsi_axi_arregion,
     dsi_axi_arlen, dsi_axi_arsize, dsi_axi_arburst, dsi_axi_araddr,
     dsi_axi_arlock, dsi_axi_arcache, dsi_axi_arprot, dsi_axi_arvalid,
-    dsi_axi_rready, cfg_axi_awready, cfg_axi_wready, cfg_axi_bid,
-    cfg_axi_buser, cfg_axi_bresp, cfg_axi_bvalid, cfg_axi_arready,
-    cfg_axi_rid, cfg_axi_ruser, cfg_axi_rdata, cfg_axi_rresp,
-    cfg_axi_rvalid, cfg_axi_rlast, wsi,
+    dsi_axi_rready,
+    `ifdef RV_IOMMU_PROG_IF_USE_AXI
+    cfg_axi_awready, cfg_axi_wready, cfg_axi_bid, cfg_axi_buser,
+    cfg_axi_bresp, cfg_axi_bvalid, cfg_axi_arready, cfg_axi_rid,
+    cfg_axi_ruser, cfg_axi_rdata, cfg_axi_rresp, cfg_axi_rvalid,
+    cfg_axi_rlast,
+    `else // RV_IOMMU_PROG_IF_USE_APB
+    prdata_o, pready_o, pslverr_o,
+    `endif  //`endif RV_IOMMU_PROG_IF_USE_AXI
+    wsi,
 
     //Inputs
     clk, rst_n, tri_axi_awid, tri_axi_awuser, tri_axi_awqos,
@@ -67,15 +73,19 @@ module iommu_top(/*AUTOARG*/
     tci_axi_rresp, tci_axi_rlast, tci_axi_rvalid, dsi_axi_awready,
     dsi_axi_wready, dsi_axi_bid, dsi_axi_buser, dsi_axi_bresp,
     dsi_axi_bvalid, dsi_axi_arready, dsi_axi_rid, dsi_axi_ruser,
-    dsi_axi_rdata, dsi_axi_rresp, dsi_axi_rlast, dsi_axi_rvalid,
-    cfg_axi_awid, cfg_axi_awuser, cfg_axi_awqos, cfg_axi_awregion,
-    cfg_axi_awatop, cfg_axi_awlen, cfg_axi_awsize, cfg_axi_awburst,
-    cfg_axi_awaddr, cfg_axi_awlock, cfg_axi_awcache, cfg_axi_awprot,
-    cfg_axi_awvalid, cfg_axi_wuser, cfg_axi_wdata, cfg_axi_wstrb,
-    cfg_axi_wlast, cfg_axi_wvalid, cfg_axi_bready, cfg_axi_arid,
-    cfg_axi_aruser, cfg_axi_arregion, cfg_axi_arqos, cfg_axi_arlen,
-    cfg_axi_arsize, cfg_axi_arburst, cfg_axi_araddr, cfg_axi_arlock,
-    cfg_axi_arcache, cfg_axi_arprot, cfg_axi_arvalid, cfg_axi_rready
+    dsi_axi_rdata, dsi_axi_rresp, dsi_axi_rlast, dsi_axi_rvalid
+    `ifdef RV_IOMMU_PROG_IF_USE_AXI
+    ,cfg_axi_awid, cfg_axi_awuser, cfg_axi_awqos, cfg_axi_awregion
+    ,cfg_axi_awatop, cfg_axi_awlen, cfg_axi_awsize, cfg_axi_awburst
+    ,cfg_axi_awaddr, cfg_axi_awlock, cfg_axi_awcache, cfg_axi_awprot
+    ,cfg_axi_awvalid, cfg_axi_wuser, cfg_axi_wdata, cfg_axi_wstrb
+    ,cfg_axi_wlast, cfg_axi_wvalid, cfg_axi_bready, cfg_axi_arid
+    ,cfg_axi_aruser, cfg_axi_arregion, cfg_axi_arqos, cfg_axi_arlen
+    ,cfg_axi_arsize, cfg_axi_arburst, cfg_axi_araddr, cfg_axi_arlock
+    ,cfg_axi_arcache, cfg_axi_arprot, cfg_axi_arvalid, cfg_axi_rready
+    `else // RV_IOMMU_PROG_IF_USE_APB
+    ,penable_i, pwrite_i, paddr_i, psel_i, pwdata_i
+    `endif  //`endif RV_IOMMU_PROG_IF_USE_AXI
 );
 
 //////////////////////////////////////////////////////////////////////////////
@@ -269,61 +279,73 @@ input                           dsi_axi_rvalid;
 output                          dsi_axi_rready;
 
 
-// Programming Interface (Slave) (AXI4 Ful1-> AXI4-Lite -> Reg IF) 
-// ~ AW
-input  [ariane_soc::IdWidthSlave-1:0]  cfg_axi_awid;
-input  [ariane_axi_soc::UserWidth-1:0]  cfg_axi_awuser;
-input  [3:0]                    cfg_axi_awqos;
-input  [3:0]                    cfg_axi_awregion;
-input  [5:0]                    cfg_axi_awatop;
-input  [7:0]                    cfg_axi_awlen;
-input  [2:0]                    cfg_axi_awsize;
-input  [1:0]                    cfg_axi_awburst;
-input  [ariane_axi_soc::AddrWidth-1:0]  cfg_axi_awaddr;
-input                           cfg_axi_awlock;
-input  [3:0]                    cfg_axi_awcache;
-input  [2:0]                    cfg_axi_awprot;
-input                           cfg_axi_awvalid;
-output                          cfg_axi_awready;
-
-// ~ W
-input  [ariane_axi_soc::UserWidth-1:0]  cfg_axi_wuser;
-input  [ariane_axi_soc::DataWidth-1:0]  cfg_axi_wdata;
-input  [ariane_axi_soc::StrbWidth-1:0]  cfg_axi_wstrb;
-input                           cfg_axi_wlast;
-input                           cfg_axi_wvalid;
-output                          cfg_axi_wready;
-
-// ~ B
-output [ariane_soc::IdWidthSlave-1:0]  cfg_axi_bid;
-output [ariane_axi_soc::UserWidth-1:0]  cfg_axi_buser;
-output [1:0]                    cfg_axi_bresp;
-output                          cfg_axi_bvalid;
-input                           cfg_axi_bready;
-
-// ~ AR
-input  [ariane_soc::IdWidthSlave-1:0]  cfg_axi_arid;
-input  [ariane_axi_soc::UserWidth-1:0]  cfg_axi_aruser;
-input  [3:0]                    cfg_axi_arregion;
-input  [3:0]                    cfg_axi_arqos;
-input  [7:0]                    cfg_axi_arlen;
-input  [2:0]                    cfg_axi_arsize;
-input  [1:0]                    cfg_axi_arburst;
-input  [ariane_axi_soc::AddrWidth-1:0]  cfg_axi_araddr;
-input                           cfg_axi_arlock;
-input  [3:0]                    cfg_axi_arcache;
-input  [2:0]                    cfg_axi_arprot;
-input                           cfg_axi_arvalid;
-output                          cfg_axi_arready;
-
-// ~ R
-output [ariane_soc::IdWidthSlave-1:0]  cfg_axi_rid;
-output [ariane_axi_soc::UserWidth-1:0]  cfg_axi_ruser;
-output [ariane_axi_soc::DataWidth-1:0]  cfg_axi_rdata;
-output [1:0]                    cfg_axi_rresp;
-output                          cfg_axi_rvalid;
-output                          cfg_axi_rlast;
-input                           cfg_axi_rready;
+`ifdef RV_IOMMU_PROG_IF_USE_AXI
+    // Programming Interface (Slave) (AXI4 Ful1-> AXI4-Lite -> Reg IF) 
+    // ~ AW
+    input  [ariane_soc::IdWidthSlave-1:0]  cfg_axi_awid;
+    input  [ariane_axi_soc::UserWidth-1:0]  cfg_axi_awuser;
+    input  [3:0]                    cfg_axi_awqos;
+    input  [3:0]                    cfg_axi_awregion;
+    input  [5:0]                    cfg_axi_awatop;
+    input  [7:0]                    cfg_axi_awlen;
+    input  [2:0]                    cfg_axi_awsize;
+    input  [1:0]                    cfg_axi_awburst;
+    input  [ariane_axi_soc::AddrWidth-1:0]  cfg_axi_awaddr;
+    input                           cfg_axi_awlock;
+    input  [3:0]                    cfg_axi_awcache;
+    input  [2:0]                    cfg_axi_awprot;
+    input                           cfg_axi_awvalid;
+    output                          cfg_axi_awready;
+    
+    // ~ W
+    input  [ariane_axi_soc::UserWidth-1:0]  cfg_axi_wuser;
+    input  [ariane_axi_soc::DataWidth-1:0]  cfg_axi_wdata;
+    input  [ariane_axi_soc::StrbWidth-1:0]  cfg_axi_wstrb;
+    input                           cfg_axi_wlast;
+    input                           cfg_axi_wvalid;
+    output                          cfg_axi_wready;
+    
+    // ~ B
+    output [ariane_soc::IdWidthSlave-1:0]  cfg_axi_bid;
+    output [ariane_axi_soc::UserWidth-1:0]  cfg_axi_buser;
+    output [1:0]                    cfg_axi_bresp;
+    output                          cfg_axi_bvalid;
+    input                           cfg_axi_bready;
+    
+    // ~ AR
+    input  [ariane_soc::IdWidthSlave-1:0]  cfg_axi_arid;
+    input  [ariane_axi_soc::UserWidth-1:0]  cfg_axi_aruser;
+    input  [3:0]                    cfg_axi_arregion;
+    input  [3:0]                    cfg_axi_arqos;
+    input  [7:0]                    cfg_axi_arlen;
+    input  [2:0]                    cfg_axi_arsize;
+    input  [1:0]                    cfg_axi_arburst;
+    input  [ariane_axi_soc::AddrWidth-1:0]  cfg_axi_araddr;
+    input                           cfg_axi_arlock;
+    input  [3:0]                    cfg_axi_arcache;
+    input  [2:0]                    cfg_axi_arprot;
+    input                           cfg_axi_arvalid;
+    output                          cfg_axi_arready;
+    
+    // ~ R
+    output [ariane_soc::IdWidthSlave-1:0]  cfg_axi_rid;
+    output [ariane_axi_soc::UserWidth-1:0]  cfg_axi_ruser;
+    output [ariane_axi_soc::DataWidth-1:0]  cfg_axi_rdata;
+    output [1:0]                    cfg_axi_rresp;
+    output                          cfg_axi_rvalid;
+    output                          cfg_axi_rlast;
+    input                           cfg_axi_rready;
+`else // RV_IOMMU_PROG_IF_USE_APB
+    // Programming Interface (Slave) (APB -> Reg IF) 
+    input                          penable_i;
+    input                          pwrite_i;
+    input  [31:0]                  paddr_i;
+    input                          psel_i;
+    input  [31:0]                  pwdata_i;
+    output [31:0]                  prdata_o;
+    output                         pready_o;
+    output                         pslverr_o;
+`endif // RV_IOMMU_PROG_IF_USE_AXI
 
 // Wire Signaled Interrupt
 output [ariane_soc::IOMMUNumWires-1:0]  wsi;
@@ -381,6 +403,9 @@ wire                         dsi_axi_wlast;
 wire [ariane_axi_soc::StrbWidth-1:0] dsi_axi_wstrb;
 wire [ariane_axi_soc::UserWidth-1:0] dsi_axi_wuser;
 wire                         dsi_axi_wvalid;
+wire [31:0]                  prdata_o;
+wire                         pready_o;
+wire                         pslverr_o;
 wire                         rst_ni;
 wire [ariane_axi_soc::AddrWidth-1:0] tci_axi_araddr;
 wire [1:0]                   tci_axi_arburst;
@@ -444,9 +469,11 @@ ariane_axi_soc::req_t     dev_comp_req_o;
 ariane_axi_soc::resp_t    ds_resp_i;
 ariane_axi_soc::req_t     ds_req_o;
 
-//Programming Interface (Slave) (AXI4 Full1->AXI4-Lite ->Reg IF)
-ariane_axi_soc::req_slv_t  prog_req_i;
-ariane_axi_soc::resp_slv_t prog_resp_o;
+`ifdef RV_IOMMU_PROG_IF_USE_AXI
+    //Programming Interface (Slave) (AXI4 Full1->AXI4-Lite ->Reg IF)
+    ariane_axi_soc::req_slv_t  prog_req_i;
+    ariane_axi_soc::resp_slv_t prog_resp_o;
+`endif // RV_IOMMU_PROG_IF_USE_AXI
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -632,59 +659,61 @@ assign ds_resp_i.r_valid            = dsi_axi_rvalid;
 assign dsi_axi_rready               = ds_req_o.r_ready;
 
 
-// Programming Interface (Slave) (AXI4 Full -> AXI4-Lite -> Reg IF)
-// ~ AW
-assign prog_req_i.aw.id             = cfg_axi_awid;
-assign prog_req_i.aw.user           = cfg_axi_awuser;
-assign prog_req_i.aw.qos            = cfg_axi_awqos;
-assign prog_req_i.aw.region         = cfg_axi_awregion;
-assign prog_req_i.aw.atop           = cfg_axi_awatop;
-assign prog_req_i.aw.len            = cfg_axi_awlen;
-assign prog_req_i.aw.size           = cfg_axi_awsize;
-assign prog_req_i.aw.burst          = cfg_axi_awburst;
-assign prog_req_i.aw.addr           = cfg_axi_awaddr;
-assign prog_req_i.aw.lock           = cfg_axi_awlock;
-assign prog_req_i.aw.cache          = cfg_axi_awcache;
-assign prog_req_i.aw.prot           = cfg_axi_awprot;
-assign prog_req_i.aw_valid          = cfg_axi_awvalid;
-assign cfg_axi_awready              = prog_resp_o.aw_ready;
-
-// ~ W
-assign prog_req_i.w.user            = cfg_axi_wuser;
-assign prog_req_i.w.data            = cfg_axi_wdata;
-assign prog_req_i.w.strb            = cfg_axi_wstrb;
-assign prog_req_i.w.last            = cfg_axi_wlast;
-assign prog_req_i.w_valid           = cfg_axi_wvalid;
-assign cfg_axi_wready               = prog_resp_o.w_ready;
-assign cfg_axi_bid                  = prog_resp_o.b.id;
-assign cfg_axi_buser                = prog_resp_o.b.user;
-assign cfg_axi_bresp                = prog_resp_o.b.resp ;
-assign cfg_axi_bvalid               = prog_resp_o.b_valid;
-assign prog_req_i.b_ready           = cfg_axi_bready;
-
-// ~ AR
-assign prog_req_i.ar.id             = cfg_axi_arid;
-assign prog_req_i.ar.user           = cfg_axi_aruser;
-assign prog_req_i.ar.qos            = cfg_axi_arqos;
-assign prog_req_i.ar.region         = cfg_axi_arregion;
-assign prog_req_i.ar.len            = cfg_axi_arlen;
-assign prog_req_i.ar.size           = cfg_axi_arsize;
-assign prog_req_i.ar.burst          = cfg_axi_arburst;
-assign prog_req_i.ar.addr           = cfg_axi_araddr;
-assign prog_req_i.ar.lock           = cfg_axi_arlock;
-assign prog_req_i.ar.cache          = cfg_axi_arcache;
-assign prog_req_i.ar.prot           = cfg_axi_arprot;
-assign prog_req_i.ar_valid          = cfg_axi_arvalid;
-assign cfg_axi_arready              = prog_resp_o.ar_ready;
-
-// ~ R
-assign cfg_axi_rid                  = prog_resp_o.r.id;
-assign cfg_axi_ruser                = prog_resp_o.r.user;
-assign cfg_axi_rdata                = prog_resp_o.r.data;
-assign cfg_axi_rresp                = prog_resp_o.r.resp;
-assign cfg_axi_rlast                = prog_resp_o.r.last;
-assign cfg_axi_rvalid               = prog_resp_o.r_valid;
-assign prog_req_i.r_ready           = cfg_axi_rready;
+`ifdef RV_IOMMU_PROG_IF_USE_AXI
+    // Programming Interface (Slave) (AXI4 Full -> AXI4-Lite -> Reg IF)
+    // ~ AW
+    assign prog_req_i.aw.id             = cfg_axi_awid;
+    assign prog_req_i.aw.user           = cfg_axi_awuser;
+    assign prog_req_i.aw.qos            = cfg_axi_awqos;
+    assign prog_req_i.aw.region         = cfg_axi_awregion;
+    assign prog_req_i.aw.atop           = cfg_axi_awatop;
+    assign prog_req_i.aw.len            = cfg_axi_awlen;
+    assign prog_req_i.aw.size           = cfg_axi_awsize;
+    assign prog_req_i.aw.burst          = cfg_axi_awburst;
+    assign prog_req_i.aw.addr           = cfg_axi_awaddr;
+    assign prog_req_i.aw.lock           = cfg_axi_awlock;
+    assign prog_req_i.aw.cache          = cfg_axi_awcache;
+    assign prog_req_i.aw.prot           = cfg_axi_awprot;
+    assign prog_req_i.aw_valid          = cfg_axi_awvalid;
+    assign cfg_axi_awready              = prog_resp_o.aw_ready;
+    
+    // ~ W
+    assign prog_req_i.w.user            = cfg_axi_wuser;
+    assign prog_req_i.w.data            = cfg_axi_wdata;
+    assign prog_req_i.w.strb            = cfg_axi_wstrb;
+    assign prog_req_i.w.last            = cfg_axi_wlast;
+    assign prog_req_i.w_valid           = cfg_axi_wvalid;
+    assign cfg_axi_wready               = prog_resp_o.w_ready;
+    assign cfg_axi_bid                  = prog_resp_o.b.id;
+    assign cfg_axi_buser                = prog_resp_o.b.user;
+    assign cfg_axi_bresp                = prog_resp_o.b.resp ;
+    assign cfg_axi_bvalid               = prog_resp_o.b_valid;
+    assign prog_req_i.b_ready           = cfg_axi_bready;
+    
+    // ~ AR
+    assign prog_req_i.ar.id             = cfg_axi_arid;
+    assign prog_req_i.ar.user           = cfg_axi_aruser;
+    assign prog_req_i.ar.qos            = cfg_axi_arqos;
+    assign prog_req_i.ar.region         = cfg_axi_arregion;
+    assign prog_req_i.ar.len            = cfg_axi_arlen;
+    assign prog_req_i.ar.size           = cfg_axi_arsize;
+    assign prog_req_i.ar.burst          = cfg_axi_arburst;
+    assign prog_req_i.ar.addr           = cfg_axi_araddr;
+    assign prog_req_i.ar.lock           = cfg_axi_arlock;
+    assign prog_req_i.ar.cache          = cfg_axi_arcache;
+    assign prog_req_i.ar.prot           = cfg_axi_arprot;
+    assign prog_req_i.ar_valid          = cfg_axi_arvalid;
+    assign cfg_axi_arready              = prog_resp_o.ar_ready;
+    
+    // ~ R
+    assign cfg_axi_rid                  = prog_resp_o.r.id;
+    assign cfg_axi_ruser                = prog_resp_o.r.user;
+    assign cfg_axi_rdata                = prog_resp_o.r.data;
+    assign cfg_axi_rresp                = prog_resp_o.r.resp;
+    assign cfg_axi_rlast                = prog_resp_o.r.last;
+    assign cfg_axi_rvalid               = prog_resp_o.r_valid;
+    assign prog_req_i.r_ready           = cfg_axi_rready;
+`endif // RV_IOMMU_PROG_IF_USE_AXI
 
 
 // WSI
@@ -718,8 +747,10 @@ riscv_iommu #(
     .r_chan_t        ( ariane_axi_soc::r_chan_t   ),
     .axi_req_t       ( ariane_axi_soc::req_t      ),
     .axi_rsp_t       ( ariane_axi_soc::resp_t     ),
+  `ifdef RV_IOMMU_PROG_IF_USE_AXI
     .axi_req_slv_t   ( ariane_axi_soc::req_slv_t  ),
     .axi_rsp_slv_t   ( ariane_axi_soc::resp_slv_t ),
+  `endif // RV_IOMMU_PROG_IF_USE_AXI
     .axi_req_mmu_t   ( ariane_axi_soc::req_mmu_t  ),
     .reg_req_t       ( iommu_reg_req_t            ),
     .reg_rsp_t       ( iommu_reg_rsp_t            ),
@@ -742,9 +773,21 @@ riscv_iommu #(
     .ds_resp_i       ( ds_resp_i                  ),
     .ds_req_o        ( ds_req_o                   ),
 
+  `ifdef RV_IOMMU_PROG_IF_USE_AXI
     // Programming Interface (Slave) (AXI4 Full -> AXI4-Lite -> Reg IF)
     .prog_req_i      ( prog_req_i                 ),
     .prog_resp_o     ( prog_resp_o                ),
+  `else // RV_IOMMU_PROG_IF_USE_APB
+    // Programming Interface (Slave) (APB -> Reg IF)
+    .penable_i       ( penable_i                  ),
+    .pwrite_i        ( pwrite_i                   ),
+    .paddr_i         ( paddr_i[31:0]              ),
+    .psel_i          ( psel_i                     ),
+    .pwdata_i        ( pwdata_i[31:0]             ),
+    .prdata_o        ( prdata_o[31:0]             ),
+    .pready_o        ( pready_o                   ),
+    .pslverr_o       ( pslverr_o                  ),
+  `endif // RV_IOMMU_PROG_IF_USE_AXI
 
     .wsi_wires_o     ( wsi_wires_o[(ariane_soc::IOMMUNumWires-1):0] )
 );

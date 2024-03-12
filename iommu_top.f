@@ -1,4 +1,7 @@
 
+//+define+RV_IOMMU_PROG_IF_USE_AXI
++define+RV_IOMMU_PROG_IF_USE_APB
+
 +incdir+./packages/dependencies
 +incdir+./packages/rv_iommu
 +incdir+./include
